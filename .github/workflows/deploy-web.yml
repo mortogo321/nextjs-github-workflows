@@ -1,40 +1,42 @@
-name: Deploy Web App to Server (EC2)
-
-on:
-  push:
-    branches: [dev, main]
-
-jobs:
-  deploy:
-    runs-on: [self-hosted, nextjs, web]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Deploy app
-        working-directory: /opt/web
-        env:
-          GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
-        run: |
-          set -e
-          BRANCH="${{ github.ref_name }}"
-
-          if [ "$BRANCH" = "main" ]; then
-            COMPOSE_FILE="docker/compose.production.yml"
-          else
-            COMPOSE_FILE="docker/compose.uat.yml"
-          fi
-
-          echo "🔁 Deploying branch $BRANCH using $COMPOSE_FILE"
-
-          # Make sure on the correct branch
-          git checkout $BRANCH
-
-          # Pull latest changes
-          git pull origin $BRANCH
-
-          echo "🐳 Building image"
-          docker compose -f $COMPOSE_FILE build
-
-          echo "🚀 Restarting container"
-          docker compose -f $COMPOSE_FILE up -d
+# Deployment workflow disabled — no deployment target configured
+#
+# name: Deploy Web App to Server (EC2)
+#
+# on:
+#   push:
+#     branches: [dev, main]
+#
+# jobs:
+#   deploy:
+#     runs-on: [self-hosted, nextjs, web]
+#
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v3
+#       - name: Deploy app
+#         working-directory: /opt/web
+#         env:
+#           GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
+#         run: |
+#           set -e
+#           BRANCH="${{ github.ref_name }}"
+#
+#           if [ "$BRANCH" = "main" ]; then
+#             COMPOSE_FILE="docker/compose.production.yml"
+#           else
+#             COMPOSE_FILE="docker/compose.uat.yml"
+#           fi
+#
+#           echo "🔁 Deploying branch $BRANCH using $COMPOSE_FILE"
+#
+#           # Make sure on the correct branch
+#           git checkout $BRANCH
+#
+#           # Pull latest changes
+#           git pull origin $BRANCH
+#
+#           echo "🐳 Building image"
+#           docker compose -f $COMPOSE_FILE build
+#
+#           echo "🚀 Restarting container"
+#           docker compose -f $COMPOSE_FILE up -d
