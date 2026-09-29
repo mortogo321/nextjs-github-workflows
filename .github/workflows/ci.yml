@@ -63,5 +63,5 @@ jobs:
     needs: [lint, typecheck, test, build]
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - run: docker build -f app/Dockerfile --target production .
