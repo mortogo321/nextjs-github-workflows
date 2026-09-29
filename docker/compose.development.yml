@@ -6,12 +6,16 @@ services:
       context: ..
       dockerfile: app/Dockerfile
       target: development
-    command: yarn start:dev
     restart: unless-stopped
     ports:
-      - 8000:8000
+      - 8000:3000
     env_file:
       - ../app/.env.development
     volumes:
-      - ../app:/app
-      - ../app/.env.development:/app/.env
+      - ../app/src:/app/src
+      - ../app/public:/app/public
+    healthcheck:
+      test: ["CMD", "bun", "--version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

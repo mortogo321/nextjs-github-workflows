@@ -1,43 +1,56 @@
-# variables
-ARG IMAGE=node:alpine
+# syntax=docker/dockerfile:1
+ARG NODE_VERSION=26.10.0
+ARG BUN_VERSION=1.4.2
 
-# base
-FROM ${IMAGE} AS base
-
-RUN apk update && apk add --no-cache curl libc6-compat openssl
-
+# ---- deps (bun-first) ----
+FROM oven/bun:${BUN_VERSION}-alpine AS deps
 WORKDIR /app
+COPY app/package.json app/bun.lock ./
+RUN bun install --frozen-lockfile
 
-COPY ../app/package.json ../app/yarn.lock ./
-
-RUN yarn install --frozen-lockfile
-
-COPY ../app .
-
-RUN yarn build
-
-# uat stage
-FROM base AS uat
-
+# ---- builder ----
+FROM oven/bun:${BUN_VERSION}-alpine AS builder
 WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY app/ ./
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN bun run build
 
-COPY ../app/.env.uat .env
-COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/.next ./.next
-
+# ---- production runner (non-root Node 26, Next standalone) ----
+FROM node:${NODE_VERSION}-alpine AS runner-base
+WORKDIR /app
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000
+RUN apk add --no-cache curl libc6-compat openssl && \
+    addgroup -S nextjs && adduser -S nextjs -G nextjs
+COPY --from=builder --chown=nextjs:nextjs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nextjs /app/public ./public
+USER nextjs
 EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://127.0.0.1:3000/api/health || exit 1
+CMD ["node", "server.js"]
 
-CMD ["yarn", "start"]
-
-# production stage
-FROM base AS production
-
+# ---- development (bun dev, HMR-friendly) ----
+FROM oven/bun:${BUN_VERSION}-alpine AS development
 WORKDIR /app
-
-COPY ../app/.env.production .env
-COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/.next ./.next
-
+ENV NODE_ENV=development \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000
+COPY app/package.json app/bun.lock ./
+RUN bun install --frozen-lockfile
+COPY app/ ./
 EXPOSE 3000
+CMD ["bun", "run", "dev", "--hostname", "0.0.0.0", "--port", "3000"]
 
-CMD ["yarn", "start"]
+# ---- uat ----
+FROM runner-base AS uat
+ENV NODE_ENV=uat
+COPY app/.env.uat .env
+
+# ---- production ----
+FROM runner-base AS production
+ENV NODE_ENV=production
+COPY app/.env.production .env

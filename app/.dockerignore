@@ -14,9 +14,9 @@ coverage
 !.env.uat
 !.env.production
 
+.next
+out
+coverage
+
 .editorconfig
 README.md
-tslint.json
-nodemon.json
-.eslintrc.js
-.prettierrc
